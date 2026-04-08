@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ON-Q25 — Client Intake</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: sans-serif;
+        background: #f5f5f5;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      header {
+        background: #fff;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 16px 24px;
+        font-weight: 600;
+        font-size: 15px;
+      }
+      #chat-window {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .message {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+      .message.agent {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        align-self: flex-start;
+      }
+      .message.client {
+        background: #1a1a1a;
+        color: #fff;
+        align-self: flex-end;
+      }
+      #input-area {
+        background: #fff;
+        border-top: 1px solid #e0e0e0;
+        padding: 16px 24px;
+        display: flex;
+        gap: 12px;
+      }
+      textarea {
+        flex: 1;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 14px;
+        resize: none;
+        height: 52px;
+        font-family: sans-serif;
+      }
+      textarea:focus {
+        outline: none;
+        border-color: #999;
+      }
+      button {
+        background: #1a1a1a;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0 20px;
+        font-size: 14px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .typing {
+        font-size: 13px;
+        color: #999;
+        padding: 4px 0;
+      }
+      .complete-banner {
+        background: #f0faf4;
+        border: 1px solid #b7e4c7;
+        border-radius: 8px;
+        padding: 16px;
+        font-size: 14px;
+        color: #1e6b3c;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>ON-Q25 — Client Intake</header>
+
+    <div id="chat-window"></div>
+
+    <div id="input-area">
+      <textarea
+        id="user-input"
+        placeholder="Type your response here..."
+        onkeydown="handleKey(event)"
+      ></textarea>
+      <button id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+      const sessionId =
+        "session_" + Math.random().toString(36).substring(2, 10);
+      const chatWindow = document.getElementById("chat-window");
+      const input = document.getElementById("user-input");
+      const sendBtn = document.getElementById("send-btn");
+
+      // Start the conversation automatically
+      window.onload = () => sendMessage("", true);
+
+      function handleKey(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      }
+
+      async function sendMessage(overrideMessage = "", isOpening = false) {
+        const message = overrideMessage || input.value.trim();
+        if (!message && !isOpening) return;
+
+        if (!isOpening) {
+          appendMessage(message, "client");
+          input.value = "";
+        }
+
+        sendBtn.disabled = true;
+        const typing = appendTyping();
+
+        try {
+          const res = await fetch("/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId,
+              message: isOpening ? "Hello, I am ready to begin." : message,
+            }),
+          });
+
+          const data = await res.json();
+          typing.remove();
+
+          if (data.status === "complete") {
+            // Strip the JSON block from the displayed reply
+            const displayReply = data.reply
+              .replace(/\{[\s\S]*\}/, "")
+              .replace("INTAKE COMPLETE — READY FOR STEP 2", "")
+              .trim();
+            appendMessage(displayReply, "agent");
+            appendCompleteBanner();
+            input.disabled = true;
+            sendBtn.disabled = true;
+          } else {
+            appendMessage(data.reply, "agent");
+            sendBtn.disabled = false;
+            input.focus();
+          }
+        } catch (err) {
+          typing.remove();
+          appendMessage(
+            "Something went wrong. Please refresh and try again.",
+            "agent"
+          );
+          sendBtn.disabled = false;
+        }
+      }
+
+      function appendMessage(text, role) {
+        const div = document.createElement("div");
+        div.className = `message ${role}`;
+        div.textContent = text;
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return div;
+      }
+
+      function appendTyping() {
+        const div = document.createElement("div");
+        div.className = "typing";
+        div.textContent = "ON-Q25 is typing...";
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return div;
+      }
+
+      function appendCompleteBanner() {
+        const div = document.createElement("div");
+        div.className = "complete-banner";
+        div.textContent =
+          "Your intake is complete. Our team will be in touch shortly with your business review.";
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      }
+    </script>
+  </body>
+</html>
