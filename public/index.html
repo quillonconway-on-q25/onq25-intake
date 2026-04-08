@@ -116,13 +116,12 @@
     </div>
 
     <script>
-      const sessionId =
-        "session_" + Math.random().toString(36).substring(2, 10);
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get("client") || "session_" + Math.random().toString(36).substring(2, 10);
       const chatWindow = document.getElementById("chat-window");
       const input = document.getElementById("user-input");
       const sendBtn = document.getElementById("send-btn");
 
-      // Start the conversation automatically
       window.onload = () => sendMessage("", true);
 
       function handleKey(e) {
@@ -158,15 +157,18 @@
           typing.remove();
 
           if (data.status === "complete") {
-            // Strip the JSON block from the displayed reply
             const displayReply = data.reply
               .replace(/\{[\s\S]*\}/, "")
               .replace("INTAKE COMPLETE — READY FOR STEP 2", "")
               .trim();
-            appendMessage(displayReply, "agent");
+            if (displayReply) appendMessage(displayReply, "agent");
             appendCompleteBanner();
             input.disabled = true;
             sendBtn.disabled = true;
+          } else if (data.error) {
+            appendMessage("Error from server: " + data.error, "agent");
+            sendBtn.disabled = false;
+            input.focus();
           } else {
             appendMessage(data.reply, "agent");
             sendBtn.disabled = false;
@@ -174,10 +176,8 @@
           }
         } catch (err) {
           typing.remove();
-          appendMessage(
-            "Something went wrong. Please refresh and try again.",
-            "agent"
-          );
+          appendMessage("Connection error: " + err.message, "agent");
+          console.error("Fetch error:", err);
           sendBtn.disabled = false;
         }
       }
