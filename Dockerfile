@@ -2,10 +2,10 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-COPY Foundation-Consulting/package*.json ./
+COPY package*.json ./
 RUN npm install
 
-COPY Foundation-Consulting .
+COPY . .
 
 ENV NODE_ENV=production
 
